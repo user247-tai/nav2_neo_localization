@@ -110,3 +110,9 @@ neo_localization:
 
 ## Configuration
 Please visit the [neobotix configuration page](https://neobotix-docs.de/ros/packages/neo_localization.html) to know more about the configuration.
+
+## Compatibility
+This package has been built and tested with the following Nav2 branches:
+
+- [Nav2 Kilted branch](https://github.com/ros-navigation/navigation2/tree/kilted)
+------
