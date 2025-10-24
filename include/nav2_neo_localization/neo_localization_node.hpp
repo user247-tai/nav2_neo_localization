@@ -227,6 +227,9 @@ private:
   std::thread m_map_update_thread;
   bool m_broadcast_info;
   rclcpp::TimerBase::SharedPtr m_loc_update_timer;
+  std::atomic<bool> stop_threads_{false};
+  std::mutex stop_mtx_;
+  std::condition_variable stop_cv_;
 
   /*
    * @brief Callback executed when a parameter change is detected

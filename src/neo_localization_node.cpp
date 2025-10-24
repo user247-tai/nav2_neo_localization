@@ -56,6 +56,10 @@ NeoLocalizationNode::NeoLocalizationNode(const rclcpp::NodeOptions & options)
 
 NeoLocalizationNode::~NeoLocalizationNode()
 {
+  stop_threads_ = true;
+  if (m_map_update_thread.joinable()) {
+    m_map_update_thread.join();
+  }
   if (m_loc_update_timer) {
     m_loc_update_timer->cancel();
     m_loc_update_timer.reset();
@@ -98,6 +102,7 @@ nav2_util::CallbackReturn NeoLocalizationNode::on_activate(const rclcpp_lifecycl
         std::bind(&NeoLocalizationNode::dynamicParametersCallback, this, _1));
 
   // Init map update thread
+  stop_threads_ = false;
   m_map_update_thread = std::thread(&NeoLocalizationNode::update_loop, this);
 
   // create bond connection
@@ -106,56 +111,63 @@ nav2_util::CallbackReturn NeoLocalizationNode::on_activate(const rclcpp_lifecycl
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn NeoLocalizationNode::on_deactivate(const rclcpp_lifecycle::State & /*state*/)
+nav2_util::CallbackReturn NeoLocalizationNode::on_deactivate(const rclcpp_lifecycle::State &)
 {
   RCLCPP_INFO(get_logger(), "Deactivating");
 
-  // Lifecycle publishers must be explicitly deactivated
+  // deactivate lifecycle pubs
   m_pub_map_tile->on_deactivate();
   m_pub_loc_pose->on_deactivate();
-  m_pub_loc_pose_2->on_activate();
-  m_pub_pose_array->on_activate();
-  
-  if(m_map_update_thread.joinable()) {
-    m_map_update_thread.join();
-  }
+  m_pub_loc_pose_2->on_deactivate();
+  m_pub_pose_array->on_deactivate();
 
-  // shutdown and reset dynamic parameter handler
-  remove_on_set_parameters_callback(dyn_params_handler_.get());
-  dyn_params_handler_.reset();
+  // stop timer
+  if (m_loc_update_timer) m_loc_update_timer->cancel();
 
-  // destroy bond connection
-  destroyBond();
+  // ask background loop to stop, but DO NOT join here
+  stop_threads_ = true;
+  stop_cv_.notify_all();
+
+  m_broadcast_tf = false;
 
   return nav2_util::CallbackReturn::SUCCESS;
 }
 
-nav2_util::CallbackReturn NeoLocalizationNode::on_cleanup(const rclcpp_lifecycle::State & /*state*/)
+nav2_util::CallbackReturn NeoLocalizationNode::on_cleanup(const rclcpp_lifecycle::State &)
 {
   RCLCPP_INFO(get_logger(), "Cleaning up");
 
+  stop_threads_ = true;
+  stop_cv_.notify_all();
+  if (m_map_update_thread.joinable()) {
+    m_map_update_thread.join();
+  }
+
+  // now it’s safe to remove callbacks and free resources
+  if (dyn_params_handler_) {
+    remove_on_set_parameters_callback(dyn_params_handler_.get());
+    dyn_params_handler_.reset();
+  }
+
   executor_thread_.reset();
 
-  // Map
   m_map.reset(); 
   m_world.reset();
-
-  // Transforms
   transform_listener_.reset();  
   buffer.reset();
   m_tf_broadcaster.reset();
 
-  // Release Publishers 
   m_pub_map_tile.reset();
   m_pub_loc_pose.reset();
   m_pub_loc_pose_2.reset();
   m_pub_pose_array.reset();
-  
-  // Release Subsribers
+
   m_sub_pose_estimate.reset();
   m_sub_scan_topic.reset();
   m_sub_map_topic.reset();
   m_sub_only_use_odom.reset();
+
+  destroyBond();
 
   return nav2_util::CallbackReturn::SUCCESS;
 }
@@ -738,52 +750,52 @@ void NeoLocalizationNode::update_map()
  */
 void NeoLocalizationNode::update_loop()
 {
-  RCLCPP_INFO_ONCE(this->get_logger(),"NeoLocalizationNode: Activating map update loop");
+  RCLCPP_INFO_ONCE(this->get_logger(), "NeoLocalizationNode: Activating map update loop");
 
-  rclcpp::Rate loop_rate(m_map_update_rate);
-  while (rclcpp::ok()) {
+  // period from Hz (map_update_rate is in 1/s == Hz)
+  const auto period = std::chrono::duration<double>(1.0 / std::max(1e-6, m_map_update_rate));
+
+  while (rclcpp::ok() && !stop_threads_) {
     if (!m_initialized && !m_set_initial_pose) {
-      RCLCPP_WARN_STREAM(this->get_logger(), "Is the robot pose initialized?");
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *get_clock(), 2000, "Is the robot pose initialized?");
     } else {
-      if (!m_initialized) {
-        RCLCPP_INFO_ONCE(this->get_logger(), "Using the config init pose");
-      }
-      try {
-        update_map(); // get a new map tile periodically
-      } catch (const std::exception& ex) {
-        RCLCPP_WARN_STREAM(this->get_logger(), "NeoLocalizationNode: update_map() failed:");
+      try { update_map(); }
+      catch (const std::exception& ex) {
+        RCLCPP_WARN(this->get_logger(), "NeoLocalizationNode: update_map() failed: %s", ex.what());
       }
     }
-    loop_rate.sleep();
+
+    std::unique_lock<std::mutex> lk(stop_mtx_);
+    if (stop_cv_.wait_for(lk, period, [this]{ return stop_threads_.load(); })) {
+      break; 
+    }
   }
 }
+
 
 /*
  * Publishes "map" frame on tf_->
  */
 void NeoLocalizationNode::broadcast()
 {
-  if(m_broadcast_tf)
-  {
-    // compose and publish transform for tf package
-    geometry_msgs::msg::TransformStamped pose;
-    // compose header
-    // Adding an expiry time of the frame. Same procedure followed in nav2_amcl
-    m_offset_time.nanosec = m_offset_time.nanosec + 1000000000;
-    pose.header.stamp = m_offset_time;
-    pose.header.frame_id = m_map_frame;
-    pose.child_frame_id = m_odom_frame;
-    // compose data container
-    pose.transform.translation.x = m_offset_x;
-    pose.transform.translation.y = m_offset_y;
-    pose.transform.translation.z = 0;
-    tf2::Quaternion myQuaternion;
-    myQuaternion.setRPY( 0, 0, m_offset_yaw);
-    pose.transform.rotation = tf2::toMsg(myQuaternion);
-
-    // publish the transform
-    m_tf_broadcaster->sendTransform(pose);
+  if (!m_broadcast_tf || !m_tf_broadcaster) {
+    return;
   }
+
+  geometry_msgs::msg::TransformStamped pose;
+
+  auto expiry = rclcpp::Time(m_offset_time) + rclcpp::Duration::from_seconds(1.0);
+
+  pose.header.stamp = expiry;
+  pose.header.frame_id = m_map_frame;
+  pose.child_frame_id = m_odom_frame;
+  pose.transform.translation.x = m_offset_x;
+  pose.transform.translation.y = m_offset_y;
+  pose.transform.translation.z = 0.0;
+  tf2::Quaternion q; q.setRPY(0, 0, m_offset_yaw);
+  pose.transform.rotation = tf2::toMsg(q);
+
+  m_tf_broadcaster->sendTransform(pose);
 }
 
 /*
