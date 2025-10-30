@@ -114,5 +114,5 @@ Please visit the [neobotix configuration page](https://neobotix-docs.de/ros/pack
 ## Compatibility
 This package has been built and tested with the following Nav2 branches:
 
-- [Nav2 Kilted branch](https://github.com/ros-navigation/navigation2/tree/kilted)
-------
+- [Nav2 Rolling branch](https://github.com/ros-navigation/navigation2) (main branch)
+- [Nav2 Kilted branch](https://github.com/ros-navigation/navigation2/tree/kilted) (kilted branch)
