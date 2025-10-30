@@ -103,9 +103,9 @@ neo_localization:
     broadcast_info: false
 
     set_initial_pose: true
-    initia_pose.x: 0.0
-    initia_pose.y: 0.0
-    initia_pose.yaw: 0.0
+    initial_pose.x: 0.0
+    initial_pose.y: 0.0
+    initial_pose.yaw: 0.0
 ```
 
 ## Configuration
