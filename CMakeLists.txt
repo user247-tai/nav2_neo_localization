@@ -17,53 +17,58 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(ament_cmake REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(angles REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(pluginlib REQUIRED)
 
 nav2_package()
 
+include_directories(
+  include
+)
+
 set(executable_name neo_localization)
 set(library_name ${executable_name}_core)
+
+set(dependencies
+  rclcpp
+  rclcpp_lifecycle
+  rclcpp_components
+  geometry_msgs
+  nav_msgs
+  nav2_msgs
+  nav2_util
+  sensor_msgs
+  std_srvs
+  tf2
+  tf2_ros
+  tf2_sensor_msgs
+  tf2_geometry_msgs
+  tf2_eigen
+  angles
+  pluginlib
+)
 
 # Main library
 add_library(${library_name} SHARED
   src/neo_localization_node.cpp
 )
-
-target_include_directories(${library_name}
-  PUBLIC
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
-  "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
-)
-
-target_link_libraries(${library_name} PUBLIC
-  ${geometry_msgs_TARGETS}
-  nav2_util::nav2_util_core
-  angles::angles
-  ${sensor_msgs_TARGETS}
-  ${std_srvs_TARGETS}
-  pluginlib::pluginlib
-  rclcpp::rclcpp
-  rclcpp_lifecycle::rclcpp_lifecycle
-  ${nav_msgs_TARGETS}
-  tf2_ros::tf2_ros
-  tf2::tf2
-  ${nav2_msgs_TARGETS}
-)
-
-target_link_libraries(${library_name} PRIVATE
-  rclcpp_components::component
+ament_target_dependencies(${library_name}
+  ${dependencies}
 )
 
 # Main executable
 add_executable(${executable_name}
   src/main.cpp
 )
-
-target_link_libraries(${executable_name} PRIVATE ${library_name} rclcpp::rclcpp)
+ament_target_dependencies(${executable_name}
+  ${dependencies}
+)
+target_link_libraries(${executable_name} ${library_name})
 
 rclcpp_components_register_nodes(${library_name} "nav2_neo_localization::NeoLocalizationNode")
 
 install(
-  TARGETS ${library_name} 
+  TARGETS ${library_name}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -74,34 +79,17 @@ install(TARGETS ${executable_name}
 )
 
 install(DIRECTORY include/
-  DESTINATION include/${PROJECT_NAME}
+  DESTINATION include/
 )
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  set(ament_cmake_copyright_FOUND TRUE)
-  set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_gtest REQUIRED)
+  # add_subdirectory(test)
 endif()
 
-ament_export_include_directories("include/${PROJECT_NAME}")
+ament_export_include_directories(include)
 ament_export_libraries(${library_name})
-ament_export_dependencies(
-  geometry_msgs
-  nav_msgs
-  nav2_msgs
-  nav2_util
-  pluginlib
-  rclcpp
-  rclcpp_lifecycle
-  sensor_msgs
-  std_srvs
-  tf2
-  tf2_ros
-  tf2_sensor_msgs
-  tf2_geometry_msgs
-  tf2_eigen
-  angles
-)
-
+ament_export_dependencies(${dependencies})
 ament_package()
