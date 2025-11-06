@@ -116,6 +116,7 @@ This package has been built and tested with the following Nav2 branches:
 
 - [Nav2 Rolling branch](https://github.com/ros-navigation/navigation2) (main branch)
 - [Nav2 Kilted branch](https://github.com/ros-navigation/navigation2/tree/kilted) (kilted branch)
+- [Nav2 Jazzy branch](https://github.com/ros-navigation/navigation2/tree/jazzy) (jazzy branch)
 
 ## Notice on Origin and License
 
