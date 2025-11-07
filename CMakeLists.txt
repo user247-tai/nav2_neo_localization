@@ -40,7 +40,6 @@ target_link_libraries(${library_name} PUBLIC
   angles::angles
   ${sensor_msgs_TARGETS}
   ${std_srvs_TARGETS}
-  pluginlib::pluginlib
   rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle
   ${nav_msgs_TARGETS}
@@ -91,7 +90,6 @@ ament_export_dependencies(
   nav_msgs
   nav2_msgs
   nav2_util
-  pluginlib
   rclcpp
   rclcpp_lifecycle
   sensor_msgs
