@@ -39,9 +39,6 @@ nav2::CallbackReturn NeoLocalizationNode::on_configure(const rclcpp_lifecycle::S
   getParameters(node);
   initTransforms();
   initPubSub();
-  //Init timer
-  m_loc_update_timer = create_wall_timer(std::chrono::milliseconds(m_loc_update_time_ms), std::bind(&NeoLocalizationNode::loc_update, this));
-  
   initNameSpace();
 
   if (!dyn_params_handler_) {
@@ -69,6 +66,13 @@ nav2::CallbackReturn NeoLocalizationNode::on_activate(const rclcpp_lifecycle::St
 
   auto node = shared_from_this();
 
+  //Init timer
+  if (!m_loc_update_timer) {
+    m_loc_update_timer = create_wall_timer(std::chrono::milliseconds(m_loc_update_time_ms), std::bind(&NeoLocalizationNode::loc_update, this));
+  } else {
+    m_loc_update_timer->reset();
+  }
+
   if (m_map_update_thread.joinable()) {
     stop_threads_ = true;
     stop_cv_.notify_all();
@@ -89,14 +93,11 @@ nav2::CallbackReturn NeoLocalizationNode::on_deactivate(const rclcpp_lifecycle::
 {
   RCLCPP_INFO(get_logger(), "Deactivating");
 
-  // deactivate lifecycle pubs
-  m_pub_map_tile->on_deactivate();
-  m_pub_loc_pose->on_deactivate();
-  m_pub_loc_pose_2->on_deactivate();
-  m_pub_pose_array->on_deactivate();
-
   // stop timer
-  if (m_loc_update_timer) m_loc_update_timer->cancel();
+  if (m_loc_update_timer) {
+    m_loc_update_timer->cancel();
+    m_loc_update_timer.reset();  
+  }
 
   // ask background loop to stop, but DO NOT join here
   stop_threads_ = true;
@@ -105,8 +106,15 @@ nav2::CallbackReturn NeoLocalizationNode::on_deactivate(const rclcpp_lifecycle::
   if (m_map_update_thread.joinable()) {
     m_map_update_thread.join();
   }
+  
+  // Now end the bond cleanly
+  destroyBond();
 
-  m_broadcast_tf = false;
+  // deactivate lifecycle pubs
+  m_pub_map_tile->on_deactivate();
+  m_pub_loc_pose->on_deactivate();
+  m_pub_loc_pose_2->on_deactivate();
+  m_pub_pose_array->on_deactivate();
 
   return nav2::CallbackReturn::SUCCESS;
 }
@@ -128,6 +136,10 @@ nav2::CallbackReturn NeoLocalizationNode::on_cleanup(const rclcpp_lifecycle::Sta
     dyn_params_handler_.reset();
   }
 
+  map_received_ = false;
+  m_initialized = false;
+  m_scan_buffer.clear();
+
   executor_thread_.reset();
 
   m_map.reset(); 
@@ -146,8 +158,6 @@ nav2::CallbackReturn NeoLocalizationNode::on_cleanup(const rclcpp_lifecycle::Sta
   m_sub_map_topic.reset();
   m_sub_only_use_odom.reset();
 
-  // Now end the bond cleanly
-  destroyBond();
 
   return nav2::CallbackReturn::SUCCESS;
 }
