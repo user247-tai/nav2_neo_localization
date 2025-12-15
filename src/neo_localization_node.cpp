@@ -66,6 +66,12 @@ nav2::CallbackReturn NeoLocalizationNode::on_activate(const rclcpp_lifecycle::St
   dyn_params_handler_ = add_on_set_parameters_callback(
         std::bind(&NeoLocalizationNode::dynamicParametersCallback, this, _1));
 
+  if (m_map_update_thread.joinable()) {
+    stop_threads_ = true;
+    stop_cv_.notify_all();
+    m_map_update_thread.join();
+  }
+
   // Init map update thread
   stop_threads_ = false;
   m_map_update_thread = std::thread(&NeoLocalizationNode::update_loop, this);
@@ -93,6 +99,10 @@ nav2::CallbackReturn NeoLocalizationNode::on_deactivate(const rclcpp_lifecycle::
   stop_threads_ = true;
   stop_cv_.notify_all();
 
+  if (m_map_update_thread.joinable()) {
+    m_map_update_thread.join();
+  }
+
   m_broadcast_tf = false;
 
   return nav2::CallbackReturn::SUCCESS;
@@ -104,6 +114,7 @@ nav2::CallbackReturn NeoLocalizationNode::on_cleanup(const rclcpp_lifecycle::Sta
 
   stop_threads_ = true;
   stop_cv_.notify_all();
+  
   if (m_map_update_thread.joinable()) {
     m_map_update_thread.join();
   }
