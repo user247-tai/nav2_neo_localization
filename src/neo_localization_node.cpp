@@ -268,7 +268,7 @@ void NeoLocalizationNode::initPubSub()
   m_sub_scan_topic = create_subscription<sensor_msgs::msg::LaserScan>(m_scan_topic, std::bind(&NeoLocalizationNode::scan_callback, this, _1), nav2::qos::SensorDataQoS());
   m_sub_map_topic = create_subscription<nav_msgs::msg::OccupancyGrid>("/map", std::bind(&NeoLocalizationNode::map_callback, this, _1), nav2::qos::LatchedSubscriptionQoS(1));
   m_sub_pose_estimate = create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(m_initial_pose, std::bind(&NeoLocalizationNode::pose_callback, this, _1), nav2::qos::StandardTopicQoS(1));
-  m_sub_only_use_odom = create_subscription<std_msgs::msg::Bool>("/global_costmap/binary_state", std::bind(&NeoLocalizationNode::use_odom_callback, this, _1), nav2::qos::LatchedSubscriptionQoS(10));
+  m_sub_only_use_odom = create_subscription<std_msgs::msg::Bool>("/only_use_odom", std::bind(&NeoLocalizationNode::use_odom_callback, this, _1), nav2::qos::LatchedSubscriptionQoS(10));
 
   // Init Publishers
   m_pub_map_tile = create_publisher<nav_msgs::msg::OccupancyGrid>(m_map_tile, nav2::qos::StandardTopicQoS(1));
