@@ -114,5 +114,17 @@ Please visit the [neobotix configuration page](https://neobotix-docs.de/ros/pack
 ## Compatibility
 This package has been built and tested with the following Nav2 branches:
 
-- [Nav2 Kilted branch](https://github.com/ros-navigation/navigation2/tree/kilted)
-------
+- [Nav2 Rolling branch](https://github.com/ros-navigation/navigation2) (main branch)
+- [Nav2 Kilted branch](https://github.com/ros-navigation/navigation2/tree/kilted) (kilted branch)
+- [Nav2 Jazzy branch](https://github.com/ros-navigation/navigation2/tree/jazzy) (jazzy branch)
+- [Nav2 Humble branch](https://github.com/ros-navigation/navigation2/tree/humble) (humble branch)
+
+## Notice on Origin and License
+
+This package is based on the original **neo_localization2** by Neobotix GmbH (MIT License).  
+It has been ported and enhanced for Nav2 by **user247-tai**.  
+All source code retains the original license and copyright notices.
+
+- **Original Author**: Neobotix GmbH ([neo_localization2](https://github.com/neobotix/neo_localization2))
+- **Nav2 Port & Maintenance**: user247-tai ([nav2_neo_localization](https://github.com/user247-tai/nav2_neo_localization))
+
