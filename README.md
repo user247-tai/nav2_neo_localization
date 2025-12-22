@@ -119,6 +119,8 @@ This package has been built and tested with the following Nav2 branches:
 - [Nav2 Jazzy branch](https://github.com/ros-navigation/navigation2/tree/jazzy) (jazzy branch)
 - [Nav2 Humble branch](https://github.com/ros-navigation/navigation2/tree/humble) (humble branch)
 
+If you don’t want to integrate with Nav2, you can use the standalone lifecycle version here: [neo_localization2 (simple_lifecycle branch)](https://github.com/user247-tai/neo_localization2/)
+
 ## Notice on Origin and License
 
 This package is based on the original **neo_localization2** by Neobotix GmbH (MIT License).  
@@ -127,4 +129,3 @@ All source code retains the original license and copyright notices.
 
 - **Original Author**: Neobotix GmbH ([neo_localization2](https://github.com/neobotix/neo_localization2))
 - **Nav2 Port & Maintenance**: user247-tai ([nav2_neo_localization](https://github.com/user247-tai/nav2_neo_localization))
-
